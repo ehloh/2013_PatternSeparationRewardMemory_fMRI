@@ -1,0 +1,9 @@
+ANTS - what was done?
+
+1. [Create structural template] Hippocampus template setup using T1w scans from MPMs. These T1w scans were bias corrected, and are the same T1ws that were used in coregistration for the functional scans. 
+
+2. [Run FL model in SPM] First-level SPM models: Functionals were preprocessed fully, but leave out normalization (realign, unwarp, coregister, smooth). Run 1st level target model (ci3Hit), and first-level contrast images. First level contrast images here are then transfered over the Ants for adjustment
+
+3. [Adjust SPM's FL contrasts in Ants] In ants, input T1w scans (not bias corrected, for now) and first-level contrast images from target model (ci3hit). T1ws and Contrast images must be in .nii format. Ants will write adjusted contrast images, prefix r_. 
+
+4. [Feed Ants-adjusted FL contrasts back to PC for 2nd level model] Adjusted contrast images are converted back to .hdr + .img format, and original names restored (i.e. take away r_ prefix. This is ONLY in the PC SPM folders - the original adjusted contrast images with the r_prefix are left intact in the Neurodebian Ants folder). Run normal 2nd level model using these contrasts. 

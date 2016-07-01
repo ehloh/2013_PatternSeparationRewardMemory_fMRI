@@ -1,0 +1,108 @@
+#! /bin/bash
+# cd /mnt/host/2_Scripts
+clear
+
+
+# Which?
+WHICH_ConAdjustType=Landmarks5
+RoiList=(sph_SNVTA_L_coSRvSN2 sph_SNVTA_M_coSRvO2)
+
+
+# Paths
+PATH_to_SubData=/mnt/host/2_Data_AdjustCons
+WHICH_Model=ci3Hit
+SubjList=${PATH_to_SubData}"/SubjList_"${WHICH_Model}".txt"
+
+echo `date`
+echo "Processing all subjects for model " $WHICH_Model
+echo "Data location: "$PATH_to_SubData
+echo ' '
+echo 'ROI being processed: ' ${RoiList[*]}
+echo 'Contrast adjustment procedure: ' $WHICH_ConAdjustType
+echo ' '
+
+##########################################################################################
+# INSTRUCTIONS/DOCUMENTATION
+##########################################################################################
+#
+# THINGS TO CHECK BEFORE RUNNING SCRIPT:
+#	- Correct SubjList? (subset)?
+# 	  (See s2 script for details on compiling subject list)
+#	- All files set up in Inverse Transformation folder?
+# 
+# ——————————————————————————————————————————————————————————————————————————————————————————
+# Format of commands: roi_SRvSN_p001_SNVTA_R_60vox
+#
+#  WarpImageMultiTransform 3  ROI_TEMPLATE_SPACE  OUPUTNAME  -R PATH_TO_ORIGINAL_T1 -i AF_Affine.txt  -i PRAF_Affine.txt  _PRAF_InverseWarp.nii.gz
+#
+#	3			3-dimensional
+#	ROI_TEMPLATE_SPACE	Template image with the ROI marked 
+#				(.nii format, full path/current directory)
+#	OUTPUTNAME		Name of new file (ROI in subject space; .nii format w suffix)
+#	-R			The space you wanna bring your roi to (original individual T1)
+#	-i                      Means that you want to do an inverse transformation. 
+#				  ANTS always starts from the back, i.e. first apply
+#				  warp, followed by two affine transformations
+#				  For Warp, use the InverseWarp file; for Affine, use the #				  Affine.txt file and the '-i' command
+#
+# e.g.:  WarpImageMultiTransform 3  /whereROIs/SNVTA_R.nii  /where2writeremappedroi/p01_CW_SNVTA_R.nii  -R /wheresubstructural/p01_CW_T1w_coreg.nii -i /whereadjustmentpars/p01_CW_AF_Affine.txt  -i /whereadjustmentpars/p01_CW_PRAF_Affine.txt  /whereadjustmentpars/p01_CW_PRAF_InverseWarp.nii.gz
+#
+# Note: In template-to-subject adjustment, Affine is applied first, then Warp. Commands there read Warp first, then Affine (since Ants reads back-to-front). In template-to-subject transform, the Warp is updone first (via InverseWarp), then the Affine is undone - command reads Affine (with -i prefix) first, then InverseWarp.
+#
+##########################################################################################
+
+#SubjName=p08_AM
+
+while read SubjName
+	do 
+
+	echo '###############################################################################'
+	echo `date`
+	echo  "Processing subject: ###${SubjName}### "
+	WhereSub=${PATH_to_SubData}"/"${SubjName}
+	WhereSub_AdjustPar=${WhereSub}"/"${WHICH_ConAdjustType}
+
+	################################################################################
+	### Apply inverse transformation for specific ROI
+	################################################################################
+
+	for i in ${RoiList[*]}
+		do
+		RoiName=$i
+		echo "Applying transform to ROI: "${RoiName}
+
+		########################################################################
+		# For Basic procedure
+		########################################################################
+		echo "Inverse-transformationfor BASIC contrast adjustment"
+		#WarpImageMultiTransform 3  ${PATH_to_SubData}"/ROIs/"${RoiName}.nii  ${WhereSub_AdjustPar}"/InverseTransform/"${SubjName}_${RoiName}.nii  -R ${WhereSub}"/"${SubjName}_T1w_coreg.nii -i  ${WhereSub_AdjustPar}"/"${SubjName}_AF_Affine.txt -i  ${WhereSub_AdjustPar}"/"${SubjName}_PRAF_Affine.txt ${WhereSub_AdjustPar}"/"${SubjName}_PRAF_InverseWarp.nii.gz
+
+
+		########################################################################
+		# For Landmark Procedure
+		########################################################################
+		echo "Inverse-transformationfor LANDMARK contrast adjustment"
+		WarpImageMultiTransform 3  ${PATH_to_SubData}"/ROIs/"${RoiName}".nii" ${WhereSub_AdjustPar}"/InverseTransform/"${SubjName}_${RoiName}".nii"  -R ${WhereSub}"/"${SubjName}"_T1w_coreg.nii"  -i  ${WhereSub_AdjustPar}"/"${SubjName}"_LM_Affine.txt" ${WhereSub_AdjustPar}"/"${SubjName}"_LM_InverseWarp.nii.gz"
+
+# -i  ${WhereSub_AdjustPar}"/"${SubjName}"_LM_Affine.txt" 
+# ${WhereSub_AdjustPar}"/"${SubjName}"_LM_InverseWarp.nii.gz"
+
+
+		########################################################################
+		# For Template Procedure
+		########################################################################
+		echo "Inverse-transformationfor TEMPLATE contrast adjustment"
+#		WarpImageMultiTransform 3  ${PATH_to_SubData}"/ROIs/"${RoiName}.nii  ${WhereSub_AdjustPar}"/InverseTransform/"${SubjName}_${RoiName}.nii  -R ${WhereSub}"/"${SubjName}_T1w_coreg.nii  -i  ${WhereSub_AdjustPar}"/"${SubjName}"_TP_Affine.txt" ${WhereSub_AdjustPar}"/"${SubjName}"_TP_InverseWarp.nii.gz"
+
+
+
+
+	done
+
+	echo 'END of subject ' $SubjName
+
+done <$SubjList
+
+#############################################################################################
+echo `date`
+

@@ -1,0 +1,3 @@
+Details of ROIs
+
+- Anterior/Posterior basesd on Poppenk TICS 2013 suggestion: first y slice with uncus is considered anterior.

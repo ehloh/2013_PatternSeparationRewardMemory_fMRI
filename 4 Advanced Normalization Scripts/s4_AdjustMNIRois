@@ -1,0 +1,84 @@
+#! /bin/bash
+# cd /mnt/host/2_Scripts
+# Transform MNI Rois (in MNI SPM template space) to group template space
+
+UPDATE: I dont think this procedure works! :((( Will just have to manually draw ROIs.
+
+clear
+
+# Request
+# ROIs2Create=(Hippocampus_bilat HPC_anterior SNVTA_bilat)
+ROIs2Create=(Hippocampus_bilat_coreg)
+
+
+# Invariant setup
+PATH_TO_Rois=/mnt/host/1d_InverseTransform/TemplateROIs
+TemplateT1wName='SPM_T1wTemplate_coreg'
+echo `date`
+echo ' '
+
+##########################################################################################
+# MISC INSTRUCTIONS
+##########################################################################################
+#
+# ROI template folder must contain:
+# 
+# - List of ROIs 'ROIsList' - see s2 for formatting issues for txt file
+# - All ROI images in .nii format (MNI space)
+# - A Structural T1w template that the ROIs fit anatomically to (MNI space)
+# - The group template, 'hc_template.nii.gz'
+# 
+##########################################################################################
+
+
+
+
+################################################################################
+### [Step 1] Coregister MNI template with group template -- just affine registration
+###  Output: Writes new text file, *_AF_Affine.txt, roughly 15 min
+################################################################################ 
+echo "Step 1 (Coreg MNI template w Group template)-----------"
+#ANTS 3 -o ${TemplateT1wName}"_AF_" -r Gauss[3.0] -t SyN[0.25] -m PR[${PATH_TO_Rois}"/hc_template.nii.gz",${PATH_TO_Rois}"/"${TemplateT1wName}".nii", 0.75, 4] --affine-metric-type CC --number-of-affine-iterations 200x200x200 -i 0
+
+
+scripted commands are wrong! manual run 
+
+# manual command
+#ANTS 3 -o "SPM_T1wTemplate_coreg_AF_" -r Gauss[3.0] -t SyN[0.25] -m PR["hc_template.nii.gz", "SPM_T1wTemplate_coreg.nii", 0.75, 4] --affine-metric-type CC --number-of-affine-iterations 200x200x200 -i 0
+
+################################################################################
+### [Step 2] Apply affine parameters to MNI template
+################################################################################
+echo "Step 2 (Applying affine params to MNI template) -----------"
+WarpImageMultiTransform 3 $PATH_TO_Rois"/"${TemplateT1wName}".nii" $PATH_TO_Rois"/AF_"${TemplateT1wName}".nii" -R $PATH_TO_Rois"/hc_template.nii.gz" $PATH_TO_Rois"/"${TemplateT1wName}"_AF_Affine.txt"
+	
+################################################################################
+### [Step 3] Coregister affine-registered MNI template to group template (affine + warp)
+################################################################################
+echo "Step 3 (Coregister affine-registered MNI template to group template) -----------"
+ANTS 3 -o $PATH_TO_Rois"/"${TemplateT1wName}"_PRAF_" -r Gauss[3.0] -t SyN[0.25] -m PR[$PATH_TO_Rois"/"hc_template.nii.gz,$PATH_TO_Rois"/AF_"${TemplateT1wName}".nii", 0.75, 4]
+
+
+################################################################################
+### [Step 4]Apply affine and warp parameters to each MNI-space ROI (everything in .nii format)
+################################################################################
+echo "Step 4 (Applying affine & warp params to each MNI-space ROI image)-----------"
+WarpImageMultiTransform 3 $PATH_TO_Rois"/"${TemplateT1wName}".nii" $PATH_TO_Rois"/r_"${TemplateT1wName}".nii" -R $PATH_TO_Rois"/hc_template.nii.gz" $PATH_TO_Rois"/"${TemplateT1wName}"_PRAF_Warp.nii.gz" $PATH_TO_Rois"/"${TemplateT1wName}"_PRAF_Affine.txt" $PATH_TO_Rois"/"${TemplateT1wName}"_AF_Affine.txt"
+
+# Adjust all requested ROIs
+for i in ${ROIs2Create[*]}
+	do
+	echo '   Adjusting ROI '$i
+
+	########################################################
+	### Apply all parameters to MNI-space ROI images
+	########################################################
+	WarpImageMultiTransform 3 $PATH_TO_Rois"/"$i".nii" $PATH_TO_Rois"/r_"$i".nii" -R $PATH_TO_Rois"/"hc_template.nii.gz $PATH_TO_Rois"/"${TemplateT1wName}"_PRAF_Warp.nii.gz" $PATH_TO_Rois"/"${TemplateT1wName}"_PRAF_Affine.txt" $PATH_TO_Rois"/"${TemplateT1wName}"_AF_Affine.txt"
+	
+	echo "END of ROI " $ROIName
+done
+
+#############################################################################################
+echo `date`
+
+

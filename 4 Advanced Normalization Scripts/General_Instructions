@@ -1,0 +1,25 @@
+Notes re scripting in Linux
+
+
+# If constructing SubjList manually in vi, the total n characters should be N subjects x 7 for a 6-character subject ID (i.e. only 1 extra character per subject). Any more indicates there are probably other invisible characters that will mess things up. 
+
+
+Instructions for vi:
+- vi TextFile.txt = opens up document TextFile.txt. If it doesn't exist, will create it.
+- i= insert
+- Esc = Exit current command, e.g. insert (some don't need)
+- x = delete character
+- o = open a new line below where cursor is
+- dd = delete whole line
+- ":" (colon) = command function (for single-letter commands in editing)
+- :h = help
+- :q = quit (command window, or help window)
+- :q! = quit without saving
+- :w = write/save
+
+
+# All structural and contrast images must be in .nii format. 
+
+# Sometime in the future, figure out how to read SubjName from txt file in a way that disregards trailing/invisible/unintended characters like /r, or indexes only the first x characters. Otherwise, subject lists must be manually constructed in Linux using vi, so as to avoid (invisible) line reads/returns which will show up as /r in the terminal. SubjName display format below (edged by #s) aims to flag such trailing characters if they are present.
+
+# Remember, ingoing contrasts for adjustment must NOT have been normalized. All other preprocessing steps ok.

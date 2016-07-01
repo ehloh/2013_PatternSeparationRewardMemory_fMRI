@@ -1,0 +1,91 @@
+#! /bin/bash
+# cd /mnt/host/2_Scripts
+clear
+
+
+# Which?
+WHICH_FLModel=ci3Hit
+WHICH_AnalysisThread=s4WithDeriv
+#WHICH_Cons=(0005 0006 0007 0008)
+WHICH_Cons=(0001 0002 0003 0004)
+
+# Paths
+PATH_to_HpcTemplate=/mnt/host/1a_Data_CreateHPCTemplate
+PATH_to_SubData=/mnt/host/2_Data_AdjustCons
+WHICH_AdjustConMethod=Template
+SubjList=${PATH_to_SubData}"/SubjList_"${WHICH_FLModel}".txt"
+
+echo " ------------------------------------------------------------------ "
+echo `date`
+echo "Data location: "$PATH_to_SubData
+echo "Subject list used: "$SubjList
+echo " --- "
+echo "Contrast adjustment method: " ${WHICH_AdjustConMethod}
+echo "First level model: "${WHICH_AnalysisThread}"_"${WHICH_FLModel}
+echo ' '
+
+
+##########################################################################################
+# MISC INSTRUCTIONS
+##########################################################################################
+#
+# Uses one Warp (xyz, and corresponding InverseWarp) and one Affine from Template-creation stage
+# in adjusting contrasts. Files have been manually tranferred over and given the label 'TP'
+#
+# Command syntax: 
+#
+# WarpImageMultiTransform 3 SubStruc Written_SubStruc -R Template WarpParameter AffineParameter
+#
+# 	e.g. WarpImageMultiTransform 3 "SubStruc.nii" "r_SubStruc.nii" -R "hc_template.nii.gz" "Subject_TP_Warp.nii.gz" "Subject_TP_Affine.txt"
+#
+# 	- This command applies parameters from back to front: Always Affine first, then Warp.
+# 	- '-R': Space into which the inputs are transformed
+# 	- To adjust contrasts rather than subject structural, change SubStruc to Sub_conxxx.nii#
+# 
+##########################################################################################
+
+
+#SubjName=p01_CW
+
+while read SubjName
+	do 
+
+	echo '###############################################################################'
+	echo `date`
+	echo  "Processing subject: ###${SubjName}### "
+	SubFol=${PATH_to_SubData}"/"${SubjName}
+	SubFol_ForAdjustType=${SubFol}"/"${WHICH_AdjustConMethod}
+	SubFol_ForModel=${SubFol_ForAdjustType=}"/"${WHICH_AnalysisThread}"_"${WHICH_FLModel}
+	echo  ${SubFol_ForModel}
+	echo "Using Warp & Affine parameters from template creation !"
+	
+
+	################################################################################
+	### [Step 1] Adjust subject structurals (in .nii format)
+	###  Output: Writes r_SUB_Structural.nii file
+	###  Applies affine and warp parameters
+	################################################################################
+	echo "Step 1 (Applying affine & warp params to each subject x contrast images)-----------"
+#	WarpImageMultiTransform 3 ${SubFol}"/"${SubjName}"_T1w_coreg.nii" ${SubFol_ForAdjustType}"/r_"${SubjName}"_T1w_coreg.nii" -R ${PATH_to_HpcTemplate}"/hc_template.nii.gz" ${SubFol_ForAdjustType}"/"${SubjName}"_TP_Warp.nii.gz" ${SubFol_ForAdjustType}"/"${SubjName}"_TP_Affine.txt"
+
+
+	# Adjust all specified contrasts
+	echo ${SubFol_ForModel}
+	for i in ${WHICH_Cons[*]}
+		do
+		echo '   Adjusting contrast '$i
+
+		########################################################
+		### Apply all parameters to masks and contrast images
+		###  Output: r_con_xxx.nii
+		WarpImageMultiTransform 3 ${SubFol_ForModel}"/"${SubjName}"_con_"$i".nii" ${SubFol_ForModel}"/r_"${SubjName}"_con_"$i".nii" -R ${PATH_to_HpcTemplate}"/hc_template.nii.gz" ${SubFol_ForAdjustType}"/"${SubjName}"_TP_Warp.nii.gz" ${SubFol_ForAdjustType}"/"${SubjName}"_TP_Affine.txt"
+
+	done
+
+	echo "END of subject " $SubjName
+done <$SubjList
+
+#############################################################################################
+echo `date`
+
+

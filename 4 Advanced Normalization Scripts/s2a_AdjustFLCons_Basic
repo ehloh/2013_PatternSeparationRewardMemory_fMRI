@@ -1,0 +1,110 @@
+#! /bin/bash
+# cd /mnt/host/2_Scripts
+clear
+
+
+# Which?
+WHICH_FLModel=i5Hit
+WHICH_AnalysisThread=s4FullCardiacWithDeriv
+#WHICH_CONS=(0009 0010 0011 0012 0013 0014 0015 0016)
+WHICH_CONS=(0001 0002 0003 0004 0005 0006 0007 0008)
+# 0009 0010 0011 0012 0013 0014 0015 0016)
+# WHICH_CONS=(0005 0006 0007 0008 0001 0002 0003 0004)
+
+# Paths
+PATH_to_HpcTemplate=/mnt/host/1a_Data_CreateHPCTemplate
+PATH_to_SubData=/mnt/host/2_Data_AdjustCons
+WHICH_AdjustConMethod=Basic
+SubjList=${PATH_to_SubData}"/SubjList_"${WHICH_FLModel}".txt"
+
+echo " ------------------------------------------------------------------ "
+echo `date`
+echo "Data location: "$PATH_to_SubData
+echo "Subject list used: "$SubjList
+echo " --- "
+echo "Contrast adjustment method: " ${WHICH_AdjustConMethod}
+echo "First level model: "${WHICH_AnalysisThread}"_"${WHICH_FLModel}
+echo ' '
+
+##########################################################################################
+# MISC INSTRUCTIONS
+##########################################################################################
+
+# All structural and contrast images must be in .nii format. 
+
+# Outputs: 
+#	SubjName_AF_Affine.txt (from Step 1)
+#	AF_SubjName.nii
+#	SubjName_PRAF_Warpxvec.nii.gz (y,z)
+#	SubjName_PRAF_InverseWarpxvec.nii.gz (y,z)
+#	All re-written contrast images (.nii, prefix r_)
+#	Outputs are all specified to be AF & PRAF. These can be changed.
+#
+##########################################################################################
+
+#SubjName=p01_CW
+
+while read SubjName
+	do 
+
+	echo '###############################################################################'
+	echo `date`
+	echo  "Processing subject: ###${SubjName}### "
+	SubFol=${PATH_to_SubData}"/"${SubjName}
+	SubFol_ForAdjustType=${SubFol}"/"${WHICH_AdjustConMethod}
+	SubFol_ForModel=${SubFol}"/"${WHICH_AdjustConMethod}"/"${WHICH_AnalysisThread}"_"${WHICH_FLModel}
+	echo  ${SubFol_ForModel}
+
+	################################################################################
+	### [Step 1] Coregister individual subject with the template -- just affine registration
+	###  Output: Writes new text file, SubjName_AF_Affine.txt
+	###  Takes roughly 15 min/subject
+	################################################################################ 
+	echo "Step 1 (Coreg subject w template)-----------"
+#	ANTS 3 -o ${SubFol_ForAdjustType}"/"${SubjName}"_AF_" -r Gauss[3.0] -t SyN[0.25] -m PR[${PATH_to_HpcTemplate}"/hc_template.nii.gz",${SubFol}"/"${SubjName}"_T1w_coreg.nii", 0.75, 4] --affine-metric-type CC --number-of-affine-iterations 200x200x200 -i 0
+
+ 	################################################################################
+	### [Step 2] Apply affine parameters to individual subject
+	###  Output:  AF_SubjName_struxfile.nii  (e.g. AF_p01_CW_T1w_coreg.nii)
+	###  Very fast (1 min)
+	################################################################################
+	echo "Step 2 (Applying affine params to subject) -----------"
+#	WarpImageMultiTransform 3 ${SubFol}"/"${SubjName}"_T1w_coreg.nii" ${SubFol_ForAdjustType}"/AF_"${SubjName}"_T1w_coreg.nii" -R $PATH_to_HpcTemplate"/hc_template.nii.gz" ${SubFol_ForAdjustType}"/"${SubjName}"_AF_Affine.txt"
+	
+	################################################################################
+	### [Step 3] Coregister affine registered subject to template -- affine + warp
+	###   Output: PRAF_Warp.. and PRAF_InverseWarp.. files (3 each, .nii.gz)
+	###   Takes 30-40 min per subject
+	################################################################################
+	echo "Step 3 (BASIC PROCEDURE Coregister affine-registered subject to template) -----------"
+#	ANTS 3 -o ${SubFol_ForAdjustType}"/"${SubjName}"_PRAF_" -r Gauss[3.0] -t SyN[0.25] -m PR[${PATH_to_HpcTemplate}"/"hc_template.nii.gz, ${SubFol_ForAdjustType}"/AF_"${SubjName}"_T1w_coreg.nii", 0.75, 4]
+
+	################################################################################
+	### [Step 4]Apply affine and warp parameters to each subject x contrast images (in .nii format)
+	###  Output: Writes r_SUB_Structural.nii file
+	################################################################################
+	echo "Step 4 (Applying affine & warp params to each subject x contrast images)-----------"
+	#WarpImageMultiTransform 3 ${SubFol}"/"${SubjName}"_T1w_coreg.nii" ${SubFol_ForAdjustType}"/r_"${SubjName}"_T1w_coreg.nii" -R ${PATH_to_HpcTemplate}"/hc_template.nii.gz" ${SubFol_ForAdjustType}"/"${SubjName}"_PRAF_Warp.nii.gz" ${SubFol_ForAdjustType}"/"${SubjName}"_PRAF_Affine.txt" ${SubFol_ForAdjustType}"/"${SubjName}"_AF_Affine.txt"
+
+
+	# Adjust all specified contrasts
+	echo ${SubFol_ForModel}
+	for i in ${WHICH_CONS[*]}
+		do
+		echo '   Adjusting contrast '$i
+
+		########################################################
+		### Apply all parameters to masks and contrast images
+		###  Output: r_con_xxx.nii
+		########################################################
+WarpImageMultiTransform 3 ${SubFol_ForModel}"/"${SubjName}"_con_"$i".nii" ${SubFol_ForModel}"/r_"${SubjName}"_con_"$i".nii" -R ${PATH_to_HpcTemplate}"/hc_template.nii.gz" ${SubFol_ForAdjustType}"/"${SubjName}"_PRAF_Warp.nii.gz" ${SubFol_ForAdjustType}"/"${SubjName}"_PRAF_Affine.txt" ${SubFol_ForAdjustType}"/"${SubjName}"_AF_Affine.txt"
+
+	done
+
+	echo "END of subject " $SubjName
+done <$SubjList
+
+#############################################################################################
+echo `date`
+
+

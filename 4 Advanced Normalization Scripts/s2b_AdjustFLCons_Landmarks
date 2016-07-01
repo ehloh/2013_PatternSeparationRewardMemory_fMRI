@@ -1,0 +1,118 @@
+#! /bin/bash
+# cd /mnt/host/2_Scripts
+clear
+
+# Which?
+WHICH_FLModel=c7Hit
+WHICH_AnalysisThread=s4FullCardiacWithDeriv
+WHICH_Landmarks=5
+# WHICH_Cons=(0005 0006 0007 0008 0001 0002 0003 0004)
+WHICH_Cons=(0001 0002 0003 0004)  
+#0005  0006 0007 0008)
+# 0009 0010 0011 0012 0013 0014 0015 0016 0011 0012 0013 0014 0015 0016)
+ # 0017 0018)
+# 0019 0020 0021 0022 0023 0024 0025 0026 0027 0028 0029 0030 0031 0032 0033 0034 0035 0036 0037 0038 0039 0040 0041 0042 0043 0044 0045 0046 0047 0048 0049 0050 0051 0052 0053 0054 0055 0056 0057 0058 0059 0060 0061 0062 0063 0064 0065 0066 0067 0068 0069 0070 0071 0072)
+
+
+
+
+# Paths
+PATH_to_HpcTemplate=/mnt/host/Context_study/1a_Data_CreateHPCTemplate
+PATH_to_SubData=/mnt/host/Context_study/2_Data_AdjustCons
+WHICH_AdjustConMethod=Landmarks
+# SubjList=${PATH_to_SubData}"/SubjList_"${WHICH_FLModel}".txt"
+SubjList=${PATH_to_SubData}"/SubjList.txt"
+
+echo " ------------------------------------------------------------------ "
+echo `date`
+echo "Data location: "$PATH_to_SubData
+echo "Subject list used: "$SubjList
+echo " --- "
+echo "Contrast adjustment method: " ${WHICH_AdjustConMethod}
+echo "First level model: "${WHICH_AnalysisThread}"_"${WHICH_FLModel}
+echo ' '
+
+##########################################################################################
+# MISC INSTRUCTIONS
+##########################################################################################
+#
+# [Step 1] Command syntax to coregister subject to template -----------------------------
+#
+# ANTS 3 -o OUTPUT_NAME -i 91x70x55x40x30 -r Gauss[3.0] -t SyN[0.25] -m PSE[TEMPLATE,SUBJECT_T1,ANCHORPOINTS_TEMPLATESPACE,ANCHORPOINTS_SUBJECTSPACE,0.75,1,11,0,10]
+#
+# 	- Subject-space anchorpoints must match anatomy on SubjectT1, Template must match template
+# 	- Output: One Affine.txt, three Warp.nii.gz (xyz), three InverseWarp.nii.gz (xyz)
+#	    Name matches OUTPUT_NAME (specified in command), 'LM'
+#
+#
+# [Step 2a] Command syntax to adjust subject structural -----------------------------
+#
+# WarpImageMultiTransform 3 SubStruc Written_SubStruc -R Template WarpParameter AffineParameter
+#
+# 	e.g. WarpImageMultiTransform 3 "SubStruc.nii" "r_SubStruc.nii" -R "hc_template.nii.gz" "Subject_LM_Warp.nii.gz" "Subject_LM_Affine.txt"
+#
+# 	- This command applies parameters from back to front: Always Affine first, then Warp.
+# 	- '-R': Space into which the inputs are transformed
+#
+# [Step 2b] Command syntax to adjust contrast (same as 2a)-----------------------------
+#
+# WarpImageMultiTransform 3 SubCon Written_SubCon -R Template WarpParameter AffineParameter
+#
+# 	e.g. WarpImageMultiTransform 3 "Sub_con0001.nii" "r_Sub_con0001.nii" -R "hc_template.nii.gz" "Subject_LM_Warp.nii.gz" "Subject_LM_Affine.txt"
+#
+# 
+##########################################################################################
+#SubjName=p01_CW
+
+while read SubjName
+	do 
+
+	echo '###############################################################################'
+	SubFol=${PATH_to_SubData}"/"${SubjName}
+	SubFol_AdjustPars=${SubFol}"/"${WHICH_AdjustConMethod}${WHICH_Landmarks}
+	SubFol_ForModel=${SubFol_AdjustPars}"/"${WHICH_AnalysisThread}"_"${WHICH_FLModel}
+	echo `date`
+	echo  "Processing subject: ###${SubjName}### "
+	echo "Folders & Details:"
+	echo  ${SubFol}	
+	echo  ${SubFol_AdjustPars}
+	echo  ${SubFol_ForModel}
+	echo " "
+
+	################################################################################
+	### [Step 1] Coregister affine registered subject to template -- affine + warp 
+	### 	Fit individual subject space to template, via Landmarks/Anchorpoints
+	### 	Outputs: One affine.txt, 3 Warp files (x,y,z), 3 InverseWarp files (x,y,z)
+	################################################################################
+	echo "Step 1 (ANCHORPOINT Coregister affine-registered subject to template) -----------"
+#	ANTS 3 -o ${SubFol_AdjustPars}"/"${SubjName}"_LM_" -i 91x70x55x40x30 -r Gauss[3.0] -t SyN[0.25] -m PSE[${PATH_to_HpcTemplate}"/hc_template.nii.gz", ${SubFol}"/"${SubjName}"_T1w_coreg.nii",${PATH_to_SubData}"/Landmarks/hc-template-Landmarks"${WHICH_Landmarks}".nii.gz",  ${SubFol_AdjustPars}"/mask_Landmarks"${WHICH_Landmarks}".nii.gz",0.75,1,11,0,10]
+
+	################################################################################
+	### [Step 4]Apply affine and warp parameters to each subject x contrast images (in .nii format)
+	###  Output: Writes r_SUB_Structural.nii file
+	################################################################################
+	echo "Step 2 (Applying affine & warp params to each subject x contrast images)-----------"
+#	WarpImageMultiTransform 3 ${SubFol}"/"${SubjName}"_T1w_coreg.nii" ${SubFol_AdjustPars}"/r_"${SubjName}"_T1w_coreg.nii" -R ${PATH_to_HpcTemplate}"/hc_template.nii.gz" ${SubFol_AdjustPars}"/"${SubjName}"_LM_Warp.nii.gz" ${SubFol_AdjustPars}"/"${SubjName}"_LM_Affine.txt"
+
+	# Adjust all specified contrasts
+	echo ${SubFol_ForModel}
+	for i in ${WHICH_Cons[*]}
+		do
+		echo '   Adjusting contrast '$i
+
+		########################################################
+		### Apply all parameters to masks and contrast images
+		###  Output: r_con_xxx.nii
+		########################################################
+		WarpImageMultiTransform 3 ${SubFol_ForModel}"/"${SubjName}"_con_"$i".nii" ${SubFol_ForModel}"/r_"${SubjName}"_con_"$i".nii" -R ${PATH_to_HpcTemplate}"/hc_template.nii.gz" ${SubFol_AdjustPars}"/"${SubjName}"_LM_Warp.nii.gz" ${SubFol_AdjustPars}"/"${SubjName}"_LM_Affine.txt"
+
+
+	done
+
+	echo "END of subject " $SubjName
+done <$SubjList
+
+#############################################################################################
+echo `date`
+
+

@@ -1,0 +1,13 @@
+########## Create Hippocampus template from original T1w structurals ###########
+
+
+cd '/mnt/host/BiasCorrT1w'
+
+
+cd /usr/lib/ants    # Ants directory
+
+PATH=$PATH:/usr/lib/ants
+
+############################# Commands #######################################
+
+buildtemplateparallel.sh -d3 -o hc_ -c 0 -r1 -s CC -t GR *.nii
